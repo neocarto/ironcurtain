@@ -96,7 +96,7 @@ extent <- c(-20, 42, 24.5, 63) * k
 
 bb <- st_as_sfc(st_bbox(c(xmin = extent[1] , xmax = extent[3], ymin = extent[2], ymax = extent[4]),crs = st_crs(nuts)))
 sizes <- getFigDim(x = bb, width = 1500,mar = c(0,0,1.2,0), res = 150)
-png("ironcurtain.png", width = sizes[1], height = sizes[2], res = 150)
+png("img/ironcurtain.png", width = sizes[1], height = sizes[2], res = 150)
 par(mar = c(0,0,0,0), bg="#f2efe6")
 plot(st_geometry(ocean), col="#9acbe3", border = NA, xlim = extent[c(1,3)], ylim = extent[c(2,4)])
 plot(st_geometry(graticule), col= "#FFFFFF80",  lty=3, add=T)
