@@ -608,3 +608,11 @@ dev.off()
 
 ![](img/ironcurtain.png)
 
+# Sources & références
+
+xxx
+
+# Session info
+```{r}
+sessionInfo()
+```
