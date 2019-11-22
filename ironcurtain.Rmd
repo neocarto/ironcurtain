@@ -4,15 +4,20 @@ author: "Nicolas LAMBERT"
 date: "November 8, 2019"
 output:
   rmdformats::readthedown
+bibliography: biblio.bib
+link_citations: true
   
 ---
 
-Ce document montre comment réaliser cette carte de discontuités en 2,5D joliement mise en page entrièrement dans le langage R. Nous utilisons les packages *eurostat*, *RnaturalEarth*, *sf* et *cartography*.
+Ce document montre comment réaliser cette carte de discontuités en 2,5D (fausse 3D) joliement mise en page entrièrement dans le langage R. Des versions antérieures de cette cartes ont déjà été publiées par le passé [@lambert2016manuel], [@lambert2019mad] et ont fait l'objet de billets de blog [@lambert2019mise]. Ici, nous entendons prouver qu'il est possible de réaliser ce type de carte sans passer par un logiciel DAO [@lambert2019dessiner].
+
 
 ![Nicolas Lambert, 2019](img/ironcurtain.png)
 
 
 ## Packages
+
+Nous utilisons pour celà les packages *eurostat* [@eurostat], *RnaturalEarth* [@rnaturalearth], *sf* [@sf] et *cartography* [@cartography1], [@cartography2].
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 library("sf")
@@ -24,9 +29,7 @@ library("rnaturalearth")
 
 ## Données
 
-Import des données et du fond de carte avec le package *Eurostat*
-
-Import des géometries (NUTS version 2016).
+L'import des données et du fond de carte s'effectue directement avec le package *Eurostat*. Nous utilisons le maillage NUTS version 2016.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts2016 <- get_eurostat_geospatial(output_class = "sf",
@@ -65,7 +68,7 @@ nuts <- rbind(nuts2016_2[nuts2016_2$CNTR_CODE %in% N2,],
 nuts$id <- nuts$NUTS_ID
 ```
 
-Emilination des territoires hors espace d'étude
+Elimination des territoires hors de l'espace d'étude (re.g. remote territories)
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts <- nuts[! nuts$id %in% c("FRY10", "FRY20", "FRY30", "FRY40", "FRY50"),]
@@ -85,6 +88,7 @@ typoLayer(x = nuts, var="LEVL_CODE",
 ```
 
 Détermination de l'année cible
+
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 sapply(nuts[,c("GDPINH_2014","GDPINH_2015","GDPINH_2016", "GDPINH_2017")],
              function(x) sum(is.na(x)))
@@ -127,7 +131,6 @@ par(mar = c(0,0,0,0), bg="#f2efe6")
 plot(st_geometry(graticule), col = "#820311", lwd = 0.1)
 ```
 
-
 ## Template cartographique
 
 Pour donner un effet de rotondité et permettre une représentation en 2.5D, on opte pour une projection orthographique centré sur l'Afrique.
@@ -166,7 +169,7 @@ plot(st_geometry(fr) + c(25000, -25000), col ="#827e6c40", border = NA, add = T)
 plot(st_geometry(fr), col= "#e0d7bc", border="white", lwd = 0.1, add=T)
 ```
 
-Réalisation du template cartographique. POur bien maitriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png.
+Réalisation du template cartographique. Pour bien maitriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 # Définition de l'emprise précise de la carte
@@ -196,7 +199,7 @@ dev.off()
 
 ## Carte choroplèthe
 
-Réalisation de la carte choroplèthe sur le PIB par habitant en 2016. Nous choisissons une discretisation en 6 classes selon la méthodes des quantiles et une palette de couleures divergentes issue de ColorBrewer. La legende est générée à part pour bien la positionner sur la carte.
+Réalisation de la carte choroplèthe sur le PIB par habitant en 2016. Nous choisissons une discretisation en 6 classes selon la méthodes des quantiles et une palette de couleurs divergentes issue de ColorBrewer. La legende est générée à part pour bien la positionner sur la carte.
 
 ```{r, eval = FALSE, message = FALSE, warning = FALSE}
 # Discrétisation
@@ -608,11 +611,10 @@ dev.off()
 
 ![](img/ironcurtain.png)
 
-# Sources & références
-
-xxx
 
 # Session info
 ```{r}
 sessionInfo()
 ```
+
+# Sources & références
