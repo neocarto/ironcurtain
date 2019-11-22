@@ -17,7 +17,7 @@ Ce document montre comment réaliser cette carte de discontuités en 2,5D (fauss
 
 ## Packages
 
-Nous utilisons pour celà les packages *eurostat* [@eurostat], *RnaturalEarth* [@rnaturalearth], *sf* [@sf] et *cartography* [@cartography1], [@cartography2].
+Nous utilisons pour cela les packages *eurostat* [@eurostat], *RnaturalEarth* [@rnaturalearth], *sf* [@sf] et *cartography* [@cartography1], [@cartography2].
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 library("sf")
@@ -50,7 +50,7 @@ gdpinh <- gdpinh[,fields]
 colnames(gdpinh) <- c("id","GDPINH_2014","GDPINH_2015","GDPINH_2016", "GDPINH_2017")
 ```
 
-Jointure des données et du fond de carte pour les niveaux nuts 2 et nuts 3 
+Jointure des données et du fond de carte pour les niveaux NUTS 2 et NUTS 3 
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts2016 <- merge(x = nuts2016, y = gdpinh, 
@@ -59,7 +59,7 @@ nuts2016_3 <- nuts2016[nuts2016$LEVL_CODE == 3,]
 nuts2016_2 <- nuts2016[nuts2016$LEVL_CODE == 2,]
 ```
 
-Création d'un fond de carte combinant les NUTS 2 et le NUTS 3 dans le but d'avoir un maillage homogène avec le mois possible de données manquantes.
+Création d'un fond de carte combinant les NUTS 2 et le NUTS 3 dans le but d'avoir un maillage homogène avec le moins possible de données manquantes.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 N2 <- c("AT", "BE", "CH", "DE", "EL", "NL", "UK", "TR", "IE", "IS", "NO")
@@ -68,7 +68,7 @@ nuts <- rbind(nuts2016_2[nuts2016_2$CNTR_CODE %in% N2,],
 nuts$id <- nuts$NUTS_ID
 ```
 
-Elimination des territoires hors de l'espace d'étude (re.g. remote territories)
+Elimination des territoires hors de l'espace d'étude (e.g. remote territories)
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts <- nuts[! nuts$id %in% c("FRY10", "FRY20", "FRY30", "FRY40", "FRY50"),]
@@ -169,7 +169,7 @@ plot(st_geometry(fr) + c(25000, -25000), col ="#827e6c40", border = NA, add = T)
 plot(st_geometry(fr), col= "#e0d7bc", border="white", lwd = 0.1, add=T)
 ```
 
-Réalisation du template cartographique. Pour bien maitriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png.
+Réalisation du template cartographique. Pour bien maitriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png en définissant précisément l'emprise de la carte.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 # Définition de l'emprise précise de la carte
@@ -232,7 +232,7 @@ dev.off()
 
 ## Discontinuités
 
-Pour générer lignes de discontinuités nous utilisons la fonction *getBorders*.
+Pour générer les lignes de discontinuités nous utilisons la fonction *getBorders* du package *cartography*.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts.borders <- getBorders(nuts)
@@ -269,7 +269,7 @@ On constate que les fortes discontinuités entre les régions européennes suive
 
 ## Extrusion
 
-Pour extruder les lignes, nous procedons de la même façon que pour l'effet d'ombrage. Nous translation les lignes plusieurs fois en Y vers le haut. Sur la projection orthographique utilisée, cela produit un effet 3D. Le nombre d'itérations et l'éccart entre les lignes détermine la hauteur du mur. Voici un exemple.
+Pour extruder les lignes, nous procedons de la même façon que pour l'effet d'ombrage. Nous translatons les lignes plusieurs fois en Y (vers le haut). Sur la projection orthographique utilisée, cela produit un effet 3D. Le nombre d'itérations et l'éccart entre les lignes détermine la hauteur du mur. Voici un exemple.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 # On séléctionne une ligne au hasard
@@ -323,7 +323,7 @@ for (i in 1:length(disc$disc)){ if (disc$c1[i]== disc$c2[i]) {
 }
 ```
 
-On fabrique une fonction pour extruder (à améliorer)
+On fabrique une fonction pour extruder.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 delta <- 2500 # spacing between lines (walls) 
@@ -345,11 +345,10 @@ for (i in 1:length(disc$height))
 {
   extrude(i)
 }
-dev.off()
 ```
 ![](img/fig4.png)
 
-L'affichage de la légende s'effectue avec quelque tatonements en translatant une ligne au hasard, en l'extrudant et en positionnement judicieusement les textes. 
+L'affichage de la légende s'effectue avec quelque tâtonnement en translatant une ligne choisie au hasard, en l'extrudant et en positionnement judicieusement les textes. 
 
 ```{r, eval = FALSE, message = FALSE, warning = FALSE}
 # Textes
@@ -430,7 +429,6 @@ colnames(gdpinh) <- c("id","GDPINH_2014","GDPINH_2015","GDPINH_2016", "GDPINH_20
 # JOIN
 
 nuts2016 <- merge(x = nuts2016, y = gdpinh, by.x = "NUTS_ID", by.y = "id", all.x=T) # gdpinh
-nuts2016_3 <- nuts2016[nuts2016$LEVL_CODE == 3,]
 nuts2016_2 <- nuts2016[nuts2016$LEVL_CODE == 2,]
 
 # NUTS 2/3 LAYER
