@@ -1,7 +1,7 @@
-############################################################
-# THIS PROGRAM BUILD A 2.5D MAP ON GDP PER INH IN EUROPE
+#################################################################
+# THIS PROGRAM BUILD A 2.5D MAP ON GDP PER INH. IN EUROPE IN 2016
 # N. LAMBERT, 2019
-############################################################
+#################################################################
 
 library("sf")
 library("rnaturalearth")
@@ -46,32 +46,17 @@ colnames(nuts) <- c("id","name","GDPINH_2016","geometry")
 
 # MISSING DATA
 
-var <- "GDPINH_2016"
-plot(st_geometry(nuts), col="#CCCCCC", border="white", lwd=0.2)
-plot(st_geometry(nuts[is.na(nuts[,var]),]), col="red", border="white",lwd = 0.2, add=T)
+nuts[is.na(nuts$GDPINH_2016),c("id","name")]
 
-gdpinh[gdpinh$id == "IS","GDPINH_2016"]
-gdpinh[gdpinh$id == "CH","GDPINH_2016"]
-gdpinh[gdpinh$id == "LI","GDPINH_2016"]
-
-missing <- data.frame(nuts[is.na(nuts$GDPINH_2016),c("id","name")])
-
-CH_N0 <- 72300 ; IS_N0 <- 55900 ; LI_N0 <- 160000 ; CH01 <- 44418.07031 ; CH02 <- 38721.87891 ; CH03 <- 51173.14453 ; CH04 <- 56462.11719 ; CH05 <- 40871.4375 ; CH06 <- 43665.00391 ; CH07 <- 35029.51953 ; refval <- 45146.8046875
-CH01_ratio <- CH01 / refval ; CH02_ratio <- CH02 / refval ; CH03_ratio <- CH03 / refval ; CH04_ratio <- CH04 / refval ; CH05_ratio <- CH05 / refval ; CH06_ratio <- CH06 / refval ; CH07_ratio <- CH07 / refval ; CH01 <- CH01_ratio * CH_N0 ; CH02 <- CH02_ratio * CH_N0 ; CH03 <- CH03_ratio * CH_N0 ; CH04 <- CH04_ratio * CH_N0 ; CH05 <- CH05_ratio * CH_N0 ; CH06 <- CH06_ratio * CH_N0 ; CH07 <- CH07_ratio * CH_N0
-
-nuts[nuts$id == "CH01","GDPINH_2016"] <- CH01
-nuts[nuts$id == "CH02","GDPINH_2016"] <- CH02
-nuts[nuts$id == "CH03","GDPINH_2016"] <- CH03
-nuts[nuts$id == "CH04","GDPINH_2016"] <- CH04
-nuts[nuts$id == "CH05","GDPINH_2016"] <- CH05
-nuts[nuts$id == "CH06","GDPINH_2016"] <- CH06
-nuts[nuts$id == "CH07","GDPINH_2016"] <- CH07
-nuts[nuts$id == "LI000","GDPINH_2016"] <- LI_N0
-nuts[nuts$id == "IS00","GDPINH_2016"] <- IS_N0
-
-# -----------------------------------
-# STEP 2: MAP DESIGN
-# -----------------------------------
+nuts[nuts$id == "CH01","GDPINH_2016"] <- 44418.07
+nuts[nuts$id == "CH02","GDPINH_2016"] <- 38721.88
+nuts[nuts$id == "CH03","GDPINH_2016"] <- 51173.14
+nuts[nuts$id == "CH04","GDPINH_2016"] <- 56462.12
+nuts[nuts$id == "CH05","GDPINH_2016"] <- 40871.44
+nuts[nuts$id == "CH06","GDPINH_2016"] <- 43665
+nuts[nuts$id == "CH07","GDPINH_2016"] <- 35029.52
+nuts[nuts$id == "LI000","GDPINH_2016"] <- 160000
+nuts[nuts$id == "IS00","GDPINH_2016"] <- 55900
 
 # IMPORT LAYERS FROM NATURALEARTH
 
@@ -89,7 +74,9 @@ nuts <- st_transform(nuts,ortho)
 nuts.borders <- getBorders(nuts)
 eu <- st_union(nuts)
 
-# DISPLAY LAYERS
+# -----------------------------------
+# STEP 2: MAP DESIGN
+# -----------------------------------
 
 k <- 100000
 extent <- c(-20, 42, 24.5, 63) * k
