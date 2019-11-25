@@ -1,4 +1,4 @@
-# The New Iron Curtain
+# The New Iron Curtain, 2016
 
 ![](img/ironcurtain.png)  
 
