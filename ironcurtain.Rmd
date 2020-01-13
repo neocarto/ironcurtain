@@ -54,7 +54,7 @@ Jointure des données et du fond de carte pour les niveaux NUTS 2 et NUTS 3
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts2016 <- merge(x = nuts2016, y = gdpinh, 
-                  by.x = "NUTS_ID", by.y = "id", all.x=T)
+                  by.x = "NUTS_ID", by.y = "id", all.x = TRUE)
 nuts2016_3 <- nuts2016[nuts2016$LEVL_CODE == 3,]
 nuts2016_2 <- nuts2016[nuts2016$LEVL_CODE == 2,]
 ```
@@ -140,7 +140,7 @@ ortho <- "+proj=ortho +lat_0=-10 +lon_0=15 +x_0=0 +y_0=0
           +ellps=WGS84 +units=m +no_defs"
 ```
 
-Pour éviter tout problème dans l'opération de projection (bug, artefacts, etc.), nous definissons au préalable un rectangle nous servant à découper les diférentes couches avant projection. Puis, la projection se déroule sans accrocs.
+Pour éviter tout problème dans l'opération de projection (bug, artefacts, etc.), nous definissons au préalable un rectangle nous servant à découper les différentes couches avant projection. Puis, la projection se déroule sans accrocs.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 bb <- st_as_sfc(st_bbox(c(xmin = -50 , xmax = 70, ymin = 20, ymax = 80),
@@ -154,6 +154,7 @@ par(mar = c(0,0,0,0), bg="#f2efe6", mfrow=c(3,1))
 plot(st_geometry(graticule), col = "#820311", lwd = 0.1)
 plot(st_geometry(ocean), col = "#7bc7e3", border = NA)
 plot(st_geometry(nuts), col= "#ff7700", border="white", lwd = 0.1)
+dev.off()
 ```
 
 On peut générer un effet d'ombrage en unissant les régions nuts et en effectuant des déplacements successifs avec de la transparence. Voir l'exemple ci-dessous sur la France.
@@ -162,14 +163,14 @@ On peut générer un effet d'ombrage en unissant les régions nuts et en effectu
 fr <- st_union(nuts[substr(nuts$id,1,2) == "FR",])
 par(mar = c(0,0,0,0), bg="#f2efe6")
 plot(st_geometry(fr) + c(5000, -5000), col ="#827e6c40", border = NA)
-plot(st_geometry(fr) + c(10000, -10000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(fr) + c(15000, -15000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(fr) + c(20000, -20000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(fr) + c(25000, -25000), col ="#827e6c40", border = NA, add = T)
+plot(st_geometry(fr) + c(10000, -10000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(fr) + c(15000, -15000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(fr) + c(20000, -20000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(fr) + c(25000, -25000), col ="#827e6c40", border = NA, add = TRUE)
 plot(st_geometry(fr), col= "#e0d7bc", border="white", lwd = 0.1, add=T)
 ```
 
-Réalisation du template cartographique. Pour bien maitriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png en définissant précisément l'emprise de la carte.
+Réalisation du template cartographique. Pour bien maîtriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png en définissant précisément l'emprise de la carte. Ici, les cartes sont crées au format png et enregistrées dans le répertoire img/. 
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 # Définition de l'emprise précise de la carte
@@ -186,11 +187,11 @@ par(mar = c(0,0,0,0), bg="#f2efe6")
 plot(st_geometry(ocean), col="#9acbe3", border = NA,
      xlim = extent[c(1,3)], ylim = extent[c(2,4)])
 plot(st_geometry(graticule), col= "#FFFFFF80",  lty=3, add=T)
-plot(st_geometry(eu) + c(5000, -5000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(eu) + c(10000, -10000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(eu) + c(15000, -15000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(eu) + c(20000, -20000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(eu) + c(25000, -25000), col ="#827e6c40", border = NA, add = T)
+plot(st_geometry(eu) + c(5000, -5000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(eu) + c(10000, -10000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(eu) + c(15000, -15000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(eu) + c(20000, -20000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(eu) + c(25000, -25000), col ="#827e6c40", border = NA, add = TRUE)
 plot(st_geometry(nuts), col= "#e0d7bc", border="white", lwd = 0.1, add=T)
 dev.off()
 ```
@@ -199,7 +200,7 @@ dev.off()
 
 ## Carte choroplèthe
 
-Réalisation de la carte choroplèthe sur le PIB par habitant en 2016. Nous choisissons une discretisation en 6 classes selon la méthodes des quantiles et une palette de couleurs divergentes issue de ColorBrewer. La legende est générée à part pour bien la positionner sur la carte.
+Réalisation de la carte choroplèthe sur le PIB par habitant en 2016. Nous choisissons une discretisation en 6 classes selon la méthode des quantiles et une palette de couleurs divergentes issue de ColorBrewer. La legende est générée à part pour bien la positionner sur la carte.
 
 ```{r, eval = FALSE, message = FALSE, warning = FALSE}
 # Discrétisation
@@ -269,7 +270,7 @@ On constate que les fortes discontinuités entre les régions européennes suive
 
 ## Extrusion
 
-Pour extruder les lignes, nous procedons de la même façon que pour l'effet d'ombrage. Nous translatons les lignes plusieurs fois en Y (vers le haut). Sur la projection orthographique utilisée, cela produit un effet 3D. Le nombre d'itérations et l'éccart entre les lignes détermine la hauteur du mur. Voici un exemple.
+Pour extruder les lignes, nous procédons de la même façon que pour l'effet d'ombrage. Nous translatons les lignes plusieurs fois en Y (vers le haut). Sur la projection orthographique utilisée, cela produit un effet 3D. Le nombre d'itérations et l'éccart entre les lignes détermine la hauteur du mur. Voici un exemple.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 # On séléctionne une ligne au hasard
@@ -286,17 +287,17 @@ par(mar = c(0,0,0,0), bg="#f2efe6")
 plot(line, col= "#66666690",lwd = 0.5)
 for (j in 1:nb){
         line <- line + c(0,delta)
-        plot(line, col= "#66666690",lwd = 0.5 ,add= T)  
+        plot(line, col= "#66666690",lwd = 0.5 ,add = TRUE)  
 }
 
-# On affiche la derinière ligne en rouge avec une épaisseur de 1.2
+# On affiche la dernière ligne en rouge avec une épaisseur de 1.2
 plot(line, col= "#cf0e00",lwd = 1.2, add=T)
 ```
 
 Pour faire en sorte que l'effet 3D fonctionne bien, nous décompsons les lignes et les ordonnons en fonction de leur valeur en Y (pour faire en sorte que les lignes qui sont devant apparaissent devant)
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
-disc <- st_cast(disc,"LINESTRING")
+disc <- st_cast(disc,"MULTILINESTRING")
 c <- as.data.frame(st_coordinates(st_centroid(disc)))
 disc$Y <- c$Y
 disc <- disc[order(disc$Y, decreasing = TRUE), ]
@@ -309,12 +310,12 @@ disc$c1 <- substr(disc$id1,1,2)
 disc$c2 <- substr(disc$id2,1,2)
 
 
-# Discontinuities between two regions of two different countries
+# discontinuités entre deux régions de deux pays différentes
 disc$height <- round(scales::rescale(disc$disc, to=c(30,70)),0)
 disc$col <-"#cf0e00"
 disc$thickness <- 1.2
 
-# Discontinuities between two regions of the same country
+# discontinuités entre deux régions d'un même pays
 for (i in 1:length(disc$disc)){ if (disc$c1[i]== disc$c2[i]) {
   disc$height[i] <- 8  
   disc$col[i] <-"#66666690"
@@ -329,13 +330,13 @@ On fabrique une fonction pour extruder.
 delta <- 2500 # spacing between lines (walls) 
 extrude <- function(id){
   line <- st_geometry(disc[id,])
-  plot(line, col= "#66666690",lwd = 0.5 ,add= T)
+  plot(line, col= "#66666690",lwd = 0.5 ,add = TRUE)
       nb <- as.numeric(disc[id,"height"])[1]
       for (j in 1:nb){
         line <- st_geometry(line) + c(0,delta)
-        plot(st_geometry(line), col= "#66666690",lwd = 0.5 ,add= T)  
+        plot(st_geometry(line), col= "#66666690",lwd = 0.5 ,add = TRUE)  
       }
-      plot(line, col= disc$col[id],lwd = disc$thickness[id] ,add= T)
+      plot(line, col= disc$col[id],lwd = disc$thickness[id] ,add = TRUE)
 }
 ```
 
@@ -348,7 +349,7 @@ for (i in 1:length(disc$height))
 ```
 ![](img/fig4.png)
 
-L'affichage de la légende s'effectue avec quelque tâtonnement en translatant une ligne choisie au hasard, en l'extrudant et en positionnement judicieusement les textes. 
+L'affichage de la légende s'effectue avec quelques tâtonnements en translatant une ligne choisie au hasard, en l'extrudant et en positionnement judicieusement les textes. 
 
 ```{r, eval = FALSE, message = FALSE, warning = FALSE}
 # Textes
@@ -375,21 +376,21 @@ st_geometry(myline2) <- st_geometry(myline2) + c(0, 1.5*k)
 
 # discontinuités entre deux régions de deux pays différentes
   
-  plot(myline, col= "#66666690",lwd = 0.5 ,add= T)
+  plot(myline, col= "#66666690",lwd = 0.5 ,add = TRUE)
   for (i in 1:40){
     myline <- st_geometry(myline) + c(0,delta)
-    plot(st_geometry(myline), col= "#66666690",lwd = 0.5 ,add= T)  
+    plot(st_geometry(myline), col= "#66666690",lwd = 0.5 ,add = TRUE)  
   }
-  plot(myline, col= "#cf0e00",lwd = 1.2 ,add= T)
+  plot(myline, col= "#cf0e00",lwd = 1.2 ,add = TRUE)
 
 # discontinuités entre deux régions d'un même pays
 
-  plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
+  plot(myline2, col= "#66666690",lwd = 0.5 ,add = TRUE)
   for (i in 1:8){
     myline2 <- st_geometry(myline2) + c(0,delta)
-    plot(st_geometry(myline2), col= "#66666690",lwd = 0.5 ,add= T)  
+    plot(st_geometry(myline2), col= "#66666690",lwd = 0.5 ,add = TRUE)  
   }
-  plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
+  plot(myline2, col= "#66666690",lwd = 0.5 ,add = TRUE)
 ```
 
 ![](img/fig5.png)
@@ -430,7 +431,7 @@ colnames(gdpinh) <- c("id","GDPINH_2014","GDPINH_2015","GDPINH_2016", "GDPINH_20
 
 # JOIN
 
-nuts2016 <- merge(x = nuts2016, y = gdpinh, by.x = "NUTS_ID", by.y = "id", all.x=T)
+nuts2016 <- merge(x = nuts2016, y = gdpinh, by.x = "NUTS_ID", by.y = "id", all.x = TRUE)
 nuts2016_3 <- nuts2016[nuts2016$LEVL_CODE == 3,]
 nuts2016_2 <- nuts2016[nuts2016$LEVL_CODE == 2,]
 
@@ -501,11 +502,11 @@ png("img/ironcurtain.png", width = sizes[1], height = sizes[2], res = 150)
 par(mar = c(0,0,0,0), bg="#f2efe6")
 plot(st_geometry(ocean), col="#9acbe3", border = NA, xlim = extent[c(1,3)], ylim = extent[c(2,4)])
 plot(st_geometry(graticule), col= "#FFFFFF80",  lty=3, add=T)
-plot(st_geometry(eu) + c(5000, -5000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(eu) + c(10000, -10000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(eu) + c(15000, -15000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(eu) + c(20000, -20000), col ="#827e6c40", border = NA, add = T)
-plot(st_geometry(eu) + c(25000, -25000), col ="#827e6c40", border = NA, add = T)
+plot(st_geometry(eu) + c(5000, -5000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(eu) + c(10000, -10000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(eu) + c(15000, -15000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(eu) + c(20000, -20000), col ="#827e6c40", border = NA, add = TRUE)
+plot(st_geometry(eu) + c(25000, -25000), col ="#827e6c40", border = NA, add = TRUE)
 plot(st_geometry(nuts), col= "#e0d7bc", border="white", lwd = 0.1, add=T)
 
 # CHORO LAYER
@@ -524,8 +525,8 @@ threshold <- 0.95 # 0.95 = The highest 10% discontinuities (because two values b
 delta <- 2500 # spacing between lines (walls) 
 
 vals <- nuts[,c("id","GDPINH_2016")] %>% st_set_geometry(NULL)
-nuts.borders <- merge (x = nuts.borders, y = vals, by.x = "id1", by.y = "id", all.x = T)
-nuts.borders <- merge (x = nuts.borders, y = vals, by.x = "id2", by.y = "id", all.x = T)
+nuts.borders <- merge (x = nuts.borders, y = vals, by.x = "id1", by.y = "id", all.x = TRUE)
+nuts.borders <- merge (x = nuts.borders, y = vals, by.x = "id2", by.y = "id", all.x = TRUE)
 nuts.borders$disc <- nuts.borders$GDPINH_2016.x / nuts.borders$GDPINH_2016.y
 disc <- nuts.borders[nuts.borders$disc >= quantile(nuts.borders$disc,threshold),]
 
@@ -554,13 +555,13 @@ for (i in 1:length(disc$disc)){ if (disc$c1[i]== disc$c2[i]) {
 
 extrude <- function(id){
   line <- st_geometry(disc[id,])
-  plot(line, col= "#66666690",lwd = 0.5 ,add= T)
+  plot(line, col= "#66666690",lwd = 0.5 ,add = TRUE)
       nb <- as.numeric(disc[id,"height"])[1]
       for (j in 1:nb){
         line <- st_geometry(line) + c(0,delta)
-        plot(st_geometry(line), col= "#66666690",lwd = 0.5 ,add= T)  
+        plot(st_geometry(line), col= "#66666690",lwd = 0.5 ,add = TRUE)  
       }
-      plot(line, col= disc$col[id],lwd = disc$thickness[id] ,add= T)
+      plot(line, col= disc$col[id],lwd = disc$thickness[id] ,add = TRUE)
 }
 
 for (i in 1:length(disc$height))
@@ -605,19 +606,19 @@ st_geometry(myline) <- st_geometry(myline) + c(5*k, 5*k)
 myline2 <- myline
 st_geometry(myline2) <- st_geometry(myline2) + c(0, 1.5*k)
 
-  plot(myline, col= "#66666690",lwd = 0.5 ,add= T)
+  plot(myline, col= "#66666690",lwd = 0.5 ,add = TRUE)
   for (i in 1:40){
     myline <- st_geometry(myline) + c(0,delta)
-    plot(st_geometry(myline), col= "#66666690",lwd = 0.5 ,add= T)  
+    plot(st_geometry(myline), col= "#66666690",lwd = 0.5 ,add = TRUE)  
   }
-  plot(myline, col= "#cf0e00",lwd = 1.2 ,add= T)
+  plot(myline, col= "#cf0e00",lwd = 1.2 ,add = TRUE)
 
-  plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
+  plot(myline2, col= "#66666690",lwd = 0.5 ,add = TRUE)
   for (i in 1:8){
     myline2 <- st_geometry(myline2) + c(0,delta)
-    plot(st_geometry(myline2), col= "#66666690",lwd = 0.5 ,add= T)  
+    plot(st_geometry(myline2), col= "#66666690",lwd = 0.5 ,add = TRUE)  
   }
-  plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
+  plot(myline2, col= "#66666690",lwd = 0.5 ,add = TRUE)
   
   barscale(700, lwd = 0.6, cex = 0.4, pos = c(19*k, y = 44*k),style = "pretty")
   

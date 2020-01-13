@@ -7,7 +7,7 @@ library("sf")
 library("rnaturalearth")
 library("cartography")
 library("eurostat")
-library("reshape2") 
+library("reshape2")
 
 # ----------------------------------------------------
 # STEP 1: BUILDING A NUTS 2/3 LAYER WITH GDP PER INH.
@@ -22,6 +22,8 @@ nuts2016 <- get_eurostat_geospatial(output_class = "sf", resolution = "20", nuts
 var <- "nama_10r_3gdp"
 gdpinh <- get_eurostat(var, time_format = "num")
 gdpinh <- subset(gdpinh, gdpinh$unit == "EUR_HAB")
+
+gdpinh2 <- dcast(gdpinh, geo ~ time, value.var = "values")
 gdpinh <- dcast(gdpinh, geo ~ time, value.var = "values")
 fields <- c("geo", "2014", "2015", "2016", "2017")
 gdpinh <- gdpinh[,fields]
@@ -57,6 +59,7 @@ nuts[nuts$id == "CH06","GDPINH_2016"] <- 43665
 nuts[nuts$id == "CH07","GDPINH_2016"] <- 35029.52
 nuts[nuts$id == "LI000","GDPINH_2016"] <- 160000
 nuts[nuts$id == "IS00","GDPINH_2016"] <- 55900
+
 
 # IMPORT LAYERS FROM NATURALEARTH
 
@@ -105,7 +108,7 @@ plot(st_geometry(eu), col= NA, border="#718eb0", lwd = 0.5, add=T)
 # DISCONTINUITIES
 
 threshold <- 0.95 # 0.95 = The highest 10% discontinuities (because two values by border)
-delta <- 2500 # spacing between lines (walls) 
+delta <- 2500 # spacing between lines (walls)
 
 vals <- nuts[,c("id","GDPINH_2016")] %>% st_set_geometry(NULL)
 nuts.borders <- merge (x = nuts.borders, y = vals, by.x = "id1", by.y = "id", all.x = T)
@@ -128,7 +131,7 @@ disc$thickness <- 1.2
 
 # Discontinuities between two regions of the same country
 for (i in 1:length(disc$disc)){ if (disc$c1[i]== disc$c2[i]) {
-  disc$height[i] <- 8  
+  disc$height[i] <- 8
   disc$col[i] <-"#66666690"
   disc$thickness[i] <- 0.5
   }
@@ -143,7 +146,7 @@ extrude <- function(id){
       nb <- as.numeric(disc[id,"height"])[1]
       for (j in 1:nb){
         line <- st_geometry(line) + c(0,delta)
-        plot(st_geometry(line), col= "#66666690",lwd = 0.5 ,add= T)  
+        plot(st_geometry(line), col= "#66666690",lwd = 0.5 ,add= T)
       }
       plot(line, col= disc$col[id],lwd = disc$thickness[id] ,add= T)
 }
@@ -157,23 +160,23 @@ for (i in 1:length(disc$height))
 # TEXTS AND LEGENDS
 
 rect(-22*k, 41.3*k, 28*k, 41.3*k+250000, border = NA, col = "#2369bd80")
-text(-21.5*k, y = 42.4*k, "30 YEARS LATER, THE IRON CURTAIN IS STILL VISIBLE", cex = 2.14, pos = 4, font = 2, col="#FFFFFF80")     
-text(-15*k, y = 40.9*k, "Map 100% designed in the R language by Nicolas Lambert, 2019. Code source available here: https://github.com/neocarto/ironcurtain). Data sources: Eurostat & Natural Earth, 2019", cex = 0.5, pos = 4, font = 1, col="#806e6c")     
+text(-21.5*k, y = 42.4*k, "30 YEARS LATER, THE IRON CURTAIN IS STILL VISIBLE", cex = 2.14, pos = 4, font = 2, col="#FFFFFF80")
+text(-15*k, y = 40.9*k, "Map 100% designed in the R language by Nicolas Lambert, 2019. Code source available here: https://github.com/neocarto/ironcurtain). Data sources: Eurostat & Natural Earth, 2019", cex = 0.5, pos = 4, font = 1, col="#806e6c")
 
-text(10.5*k, y = 59.1*k, "Gross Domestic Product", cex = 0.6, pos = 4, font = 2, col="#404040")     
-text(10.5*k, y = 58.7*k, "(in € per inh. in 2016)", cex = 0.4, pos = 4, font = 1, col="#404040")    
+text(10.5*k, y = 59.1*k, "Gross Domestic Product", cex = 0.6, pos = 4, font = 2, col="#404040")
+text(10.5*k, y = 58.7*k, "(in € per inh. in 2016)", cex = 0.4, pos = 4, font = 1, col="#404040")
 legendChoro(pos = c(11*k,55*k), title.txt = "",
             values.cex = 0.35, breaks = bks, col = cols, cex = 0.5,
             values.rnd = 2, nodata = FALSE, frame = FALSE, symbol = "box",
             border = "#404040", horiz = FALSE)
 
 
-text(14.4*k, y = 57.4*k, "Discontinuities", cex = 0.6, pos = 4, font = 2, col="#404040")     
-text(15.5*k, y = 56.6*k, "Between two regions of the same country", cex = 0.4, pos = 4, font = 1, col="#404040")   
-text(15.5*k, y = 55.7*k, "Between two regions of two different countries", cex = 0.4, pos = 4, font = 1, col="#404040")   
-text(15.5*k, y = 55.3*k, "(The height is proportional to the value of the dicontinuity)", cex = 0.4, pos = 4, font = 1, col="#404040")   
+text(14.4*k, y = 57.4*k, "Discontinuities", cex = 0.6, pos = 4, font = 2, col="#404040")
+text(15.5*k, y = 56.6*k, "Between two regions of the same country", cex = 0.4, pos = 4, font = 1, col="#404040")
+text(15.5*k, y = 55.7*k, "Between two regions of two different countries", cex = 0.4, pos = 4, font = 1, col="#404040")
+text(15.5*k, y = 55.3*k, "(The height is proportional to the value of the dicontinuity)", cex = 0.4, pos = 4, font = 1, col="#404040")
 
-text(10.5*k, y = 54.4*k, "NB: only the 10% highest discontinuities are represented on the map.", cex = 0.4, pos = 4, font = 3, col="#404040")   
+text(10.5*k, y = 54.4*k, "NB: only the 10% highest discontinuities are represented on the map.", cex = 0.4, pos = 4, font = 3, col="#404040")
 
 myline <- disc[disc$id == "TR21_BG341",]
 st_geometry(myline) <- st_geometry(myline) + c(5*k, 5*k)
@@ -183,19 +186,19 @@ st_geometry(myline2) <- st_geometry(myline2) + c(0, 1.5*k)
   plot(myline, col= "#66666690",lwd = 0.5 ,add= T)
   for (i in 1:40){
     myline <- st_geometry(myline) + c(0,delta)
-    plot(st_geometry(myline), col= "#66666690",lwd = 0.5 ,add= T)  
+    plot(st_geometry(myline), col= "#66666690",lwd = 0.5 ,add= T)
   }
   plot(myline, col= "#cf0e00",lwd = 1.2 ,add= T)
 
   plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
   for (i in 1:8){
     myline2 <- st_geometry(myline2) + c(0,delta)
-    plot(st_geometry(myline2), col= "#66666690",lwd = 0.5 ,add= T)  
+    plot(st_geometry(myline2), col= "#66666690",lwd = 0.5 ,add= T)
   }
   plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
-  
+
   barscale(700, lwd = 0.6, cex = 0.4, pos = c(19*k, y = 44*k),style = "pretty")
-  
+
 dev.off()
 
 
