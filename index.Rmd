@@ -1,0 +1,512 @@
+---
+title: "Le nouveau rideau de fer"
+subtitle: "Un exemple de carte en 2.5D"
+date: "`r Sys.Date()`"
+author: 
+ - name: Nicolas Lambert
+   affiliation: RIATE, CNRS
+image: "ironcurtain.png"   
+logo: "figures/rzine.png"  
+output:
+  rzine::readrzine:
+    highlight: kate
+    number_sections: true
+csl: Rzine_citation.csl
+bibliography: biblio.bib
+nocite: |
+  @*
+link-citations: true
+github: "neocarto/ironcurtain"
+# gitlab: "gitlab.huma-num.fr/author/repository"
+# doi: "10.5281/zenodo.4554776"
+licence: "by-sa"
+
+# Only Creative Commons Licence 
+# 5 possible choices : "by-nd", "by", "by-nc-sa", "by-nc","by-sa"
+---
+
+```{r setup, include=FALSE}
+
+## Global options
+knitr::opts_chunk$set(echo=TRUE,
+        	            cache=FALSE,
+                      prompt=FALSE,
+                      comment=NA,
+                      message=FALSE,
+                      warning=FALSE,
+                      class.source="bg-info",
+                      class.output="bg-warning")
+```
+
+# Introduction {-}
+
+
+Ce document montre comment réaliser cette carte de discontuités en 2,5D (fausse 3D) joliement mise en page entrièrement dans le langage R. Des versions antérieures de cette carte ont déjà été publiées par le passé, dans le manuel de cartographie [@lambert2016manuel], ou dans Mad Maps [@lambert2019mad] et ont fait l'objet de billets de blog [@lambert2019mise]. Ici, nous entendons prouver qu'il est possible de réaliser ce type de carte sans passer par un logiciel DAO [@lambert2019dessiner]. Les sources et les références sont précisées à la fin du document.
+
+
+# Packages
+
+Pour réaliser cette carte, nous utilisons pour cela les packages *eurostat* [@eurostat], *RnaturalEarth* [@rnaturalearth], *sf* [@sf] et *mapsf* [@mapsf].
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+library("sf")
+library("mapsf")
+library("eurostat")
+library("rnaturalearth")
+```
+
+# Données
+
+L'import des données et du fond de carte s'effectue directement avec le package *Eurostat*. L'import des géométries s'effectue de la façon suivante. Nous utilisons le maillage NUTS version 2016.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+nuts2016 <- get_eurostat_geospatial(
+  output_class = "sf",
+  resolution = "20",
+  nuts_level = "all",
+  year = "2016"
+)
+```
+
+Import des données statistiques (PIB par habitant en euros) pour les années récentes (de 2014 à 2017).
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+var <- "nama_10r_3gdp"
+gdpinh <- get_eurostat(var, time_format = "num")
+gdpinh <- subset(gdpinh, gdpinh$unit == "EUR_HAB")
+gdpinh <- reshape2::dcast(gdpinh, geo ~ time, value.var = "values")
+fields <- c("geo", "2014", "2015", "2016", "2017")
+gdpinh <- gdpinh[, fields]
+colnames(gdpinh) <-
+  c("id",
+    "GDPINH_2014",
+    "GDPINH_2015",
+    "GDPINH_2016",
+    "GDPINH_2017")
+```
+
+Jointure des données et du fond de carte pour les niveaux NUTS 2 et NUTS 3 
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+nuts2016 <- merge(
+  x = nuts2016,
+  y = gdpinh,
+  by.x = "NUTS_ID",
+  by.y = "id",
+  all.x = TRUE
+)
+nuts2016_3 <- nuts2016[nuts2016$LEVL_CODE == 3, ]
+nuts2016_2 <- nuts2016[nuts2016$LEVL_CODE == 2, ]
+```
+
+Création d'un fond de carte combinant les NUTS 2 et le NUTS 3 dans le but d'avoir un maillage homogène avec le moins possible de données manquantes.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+N2 <-
+  c("AT", "BE", "CH", "DE", "EL", "NL", "UK", "TR", "IE", "IS", "NO")
+nuts <- rbind(nuts2016_2[nuts2016_2$CNTR_CODE %in% N2, ],
+              nuts2016_3[!nuts2016_3$CNTR_CODE %in% N2, ])
+nuts$id <- nuts$NUTS_ID
+```
+
+Elimination des territoires hors de l'espace d'étude (e.g. remote territories)
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+nuts <-
+  nuts[!nuts$id %in% c("FRY10", "FRY20", "FRY30", "FRY40", "FRY50"), ]
+nuts <- nuts[nuts$CNTR_CODE != "RS", ]
+```
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+mf_map(
+  x = nuts,
+  type = "typo",
+  var = "LEVL_CODE",
+  pal = c("#cc5e4e", "#76c24f"),
+  val_order = c("2", "3"),
+  border = "#e8e8e8",
+  lwd = 0.2,
+  leg_pos = "left",
+  leg_title = "Nuts level (version 2016)"
+)
+
+```
+
+Détermination de l'année cible
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+sapply(nuts[, c("GDPINH_2014", "GDPINH_2015", "GDPINH_2016", "GDPINH_2017")],
+       function(x)
+         sum(is.na(x)))
+```
+
+On cible l'année 2016 qui est la plus récente et qui a le moins de données manquantes
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+nuts <- nuts[, c("id", "NUTS_NAME", "GDPINH_2016", "geometry")]
+colnames(nuts) <- c("id", "name", "GDPINH_2016", "geometry")
+```
+
+
+On complète les données manquantes par de données estimées en externe.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+nuts[nuts$id == "CH01","GDPINH_2016"] <- 44418.07
+nuts[nuts$id == "CH02","GDPINH_2016"] <- 38721.88
+nuts[nuts$id == "CH03","GDPINH_2016"] <- 51173.14
+nuts[nuts$id == "CH04","GDPINH_2016"] <- 56462.12
+nuts[nuts$id == "CH05","GDPINH_2016"] <- 40871.44
+nuts[nuts$id == "CH06","GDPINH_2016"] <- 43665
+nuts[nuts$id == "CH07","GDPINH_2016"] <- 35029.52
+nuts[nuts$id == "LI000","GDPINH_2016"] <- 160000
+nuts[nuts$id == "IS00","GDPINH_2016"] <- 55900
+```
+
+Import des couches d'habillage avec le package *RnaturalEarth*
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+land <- ne_download(
+  scale = 110,
+  type = "land",
+  category = "physical",
+  returnclass = "sf"
+)
+```
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+mf_map(land, border = NA, col = "#6eb1db")
+```
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+ocean <- ne_download(
+  scale = 110,
+  type = "ocean",
+  category = "physical",
+  returnclass = "sf"
+)
+```
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+mf_map(ocean, border = NA, col = "#6eb1db")
+```
+
+Graticule avec *sf*
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+graticule = st_graticule(
+  crs = st_crs(4326),
+  ndiscr = 100,
+  lon = seq(-180, 180, by = 2),
+  lat = seq(-90, 90, by = 1),
+  margin = 0.01
+)
+```
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+mf_map(graticule, col = "#6eb1db")
+```
+
+Mise en forme des couches
+
+## Template cartographique
+
+Pour donner un effet de rotondité et permettre une représentation en 2.5D, on opte pour une projection orthographique centré sur l'Afrique. Pour éviter tout problème dans l'opération de projection (bug, artefacts, etc.), nous definissons au préalable un rectangle nous servant à découper les différentes couches.
+
+NB : passer sf_use_s2 à FALSE permet de faire comme si il ne s'agissait pas de coordonnées sur le globe.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+bb <-
+  st_as_sfc(st_bbox(c(
+    xmin = -50 ,
+    xmax = 70,
+    ymin = 20,
+    ymax = 80
+  ),
+  crs = st_crs(4326)))
+
+sf::sf_use_s2(FALSE)
+ocean <- st_intersection(ocean, bb)
+ocean <-  st_segmentize(ocean, 100)
+land <- st_intersection(land, bb)
+land <-  st_segmentize(land, 100)
+graticule <- st_intersection(graticule, bb)
+sf::sf_use_s2(TRUE)
+```
+
+Projection
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+ortho <- "+proj=ortho +lat_0=-10 +lon_0=15 +x_0=0 +y_0=0
+          +ellps=WGS84 +units=m +no_defs"
+
+ocean <- st_transform(ocean, ortho)
+land <- st_transform(land, ortho)
+graticule =  st_transform(graticule, ortho)
+nuts <- st_transform(nuts, ortho)
+```
+
+Affichages des couches recadrées et projetées
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+par(mar = c(0, 0, 0, 0), mfrow = c(2, 2))
+mf_map(land, col = "#6eb1db", border = NA)
+mf_map(ocean, col = "#6eb1db", border = NA)
+mf_map(graticule, col = "#6eb1db", lwd = 1)
+mf_map(nuts,
+       col = "#6eb1db",
+       border = "white",
+       lwd = 0.2)
+dev.off()
+```
+
+On peut générer un effet d'ombrage en unissant les régions nuts et en effectuant des déplacements successifs avec de la transparence. Voir l'exemple ci-dessous sur la France.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+fr <- st_union(nuts[substr(nuts$id, 1, 2) == "FR", ])
+par(mar = c(0, 0, 0, 0))
+mf_map(fr + c(5000,-5000), col = "#827e6c40", border = NA)
+mf_map(fr + c(10000,-10000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+mf_map(fr + c(15000,-15000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+mf_map(fr + c(20000,-20000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+mf_map(fr + c(25000,-25000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+mf_map(
+  fr,
+  col = "#6eb1db",
+  border = "white",
+  lwd = 0.1,
+  add = TRUE
+)
+```
+
+# Template
+
+Réalisation du template cartographique. Pour bien maîtriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png en définissant précisément l'emprise de la carte. Ici, les cartes sont crées au format png et enregistrées dans le répertoire figures/. 
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+k <- 100000
+extent <- c(-20, 42, 24.5, 63) * k
+bb <- st_as_sfc(st_bbox(
+  c(
+    xmin = extent[1],
+    xmax = extent[3],
+    ymin = extent[2],
+    ymax = extent[4]
+  ),
+  crs = st_crs(nuts)
+))
+```
+
+On crée une fonction template()
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+template = function(file){
+
+theme <- mf_theme(
+  x = "default",
+  bg = "#f2efe6",
+  fg = "#f2efe6",
+  mar = c(0, 0, 0, 0),
+  tab = TRUE,
+  pos = "left",
+  inner = FALSE,
+  line = 2,
+  cex = 1.9,
+  font = 3
+)
+
+mf_export(
+  bb,
+  export = "png",
+  width = 2000,
+  filename = file,
+  res = 150,
+  theme = theme,
+  expandBB = c(-.02, 0, 0.05, 0)
+)
+
+mf_map(ocean,
+       col = "#9acbe3",
+       border = "#9acbe3",
+       lwd = 7,
+       add = TRUE)
+
+mf_map(
+  graticule,
+  col = "#FFFFFF80",
+  lwd = 2,
+  lty = 3,
+  add = TRUE
+)
+
+
+ue <- st_union(nuts)
+
+mf_map(ue + c(5000,-5000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+mf_map(ue + c(10000,-10000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+mf_map(ue + c(15000,-15000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+mf_map(ue + c(20000,-20000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+mf_map(ue + c(25000,-25000),
+       col = "#827e6c40",
+       border = NA,
+       add = TRUE)
+
+mf_map(
+  nuts,
+  col = "#f0aa0c",
+  border = "white",
+  lwd = 0.3,
+  add = TRUE
+)
+}
+```
+
+Et voilà le résultat :-)
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+template("figures/fig1.png")
+dev.off()
+```
+
+![](figures/fig1.png)
+
+# Carte choroplèthe
+
+Classes et couleurs
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+# Discrétisation
+bks <-
+  mf_get_breaks(x = nuts$GDPINH_2016,
+                nbreaks = 6,
+                breaks = "quantile")
+# Couleurs
+cols <-
+  c("#50b160",
+    "#98c17e",
+    "#cce3c4",
+    "#fbf5bd",
+    "#fcc34f",
+    "#e97d40")
+```
+
+Carte
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+template("figures/fig1.png")
+
+mf_map(
+  x = nuts,
+  var = "GDPINH_2016",
+  type = "choro",
+  breaks = bks,
+  pal = cols,
+  lwd = 0.2,
+  leg_pos = "n",
+  add = TRUE
+)
+
+text(
+  10.5 * k,
+  y = 59.1 * k,
+  "Gross Domestic Product",
+  cex = 0.6,
+  pos = 4,
+  font = 2,
+  col = "#404040"
+)
+text(
+  10.5 * k,
+  y = 58.7 * k,
+  "(in € per inh. in 2016)",
+  cex = 0.4,
+  pos = 4,
+  font = 1,
+  col = "#404040"
+)
+dev.off()
+```
+
+
+todo...
+
+# Discontinuités
+
+todo...
+
+# Extrusion
+
+todo...
+
+# Résultat
+
+todo...
+
+
+
+# Bibliographie {-}
+
+<div id="refs"></div>
+
+
+# Annexes {-}
+
+
+## Info session  {-}
+
+```{r session_info, echo=FALSE}
+kableExtra::kable_styling(knitr::kable(rzine::sessionRzine()[[1]], row.names = F))
+kableExtra::kable_styling(knitr::kable(rzine::sessionRzine()[[2]], row.names = F))
+```
+
+
+## Citation {-}
+
+```{r ReadCitation, echo=FALSE}
+citationRzine <- bibtex::read.bib("cite.bib")
+``` 
+
+`r capture.output(print(citationRzine[1]))`
+
+### Format BibTex : {-}
+
+```{r generateBibTex, echo=FALSE}
+cat(readLines('cite.bib'), sep = '\n')
+``` 
+
+<br/>
+
+
+## Glossaire {- #endnotes}
+
+```{js, echo=FALSE}
+
+$(document).ready(function() {
+  $('.footnotes ol').appendTo('#endnotes');
+  $('.footnotes').remove();
+});
+
+```
