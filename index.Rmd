@@ -101,7 +101,7 @@ nuts <- nuts[nuts$id != "RS", ]
 ```{r, eval = TRUE, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3}
 par(mar = c(0, 0, 0, 0), mfrow = c(1, 3))
 mf_map(nuts, col = "#CCCCCC", border = NA)
-mf_map(nuts[substr(nuts$id,1,2) %in%  c("AT", "BE", "CH", "DE", "EL", "NL", "UK", "TR", "IE", "IS", "NO"),],
+mf_map(nuts[substr(nuts$id,1,2) %in%  c("AT", "BE", "CH", "DE", "EL", "NL", "TR", "IE", "IS", "NO"),],
        col = "#6eb1db",
        border = "white",
        lwd = 0.2, add = TRUE)
