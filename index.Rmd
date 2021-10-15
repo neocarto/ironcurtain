@@ -48,6 +48,7 @@ library("sf")
 library("mapsf")
 library("eurostat")
 library("rnaturalearth")
+library("cartography")
 ```
 
 # Préparation des données
@@ -312,76 +313,77 @@ bb <- st_as_sfc(st_bbox(
 On crée une fonction template()
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
-template = function(file){
-
-theme <- mf_theme(
-  x = "default",
-  bg = "#f2efe6",
-  fg = "#f2efe6",
-  mar = c(0, 0, 0, 0),
-  tab = TRUE,
-  pos = "left",
-  inner = FALSE,
-  line = 2,
-  cex = 1.9,
-  font = 3
-)
-
-mf_export(
-  bb,
-  export = "png",
-  width = 2000,
-  filename = file,
-  res = 150,
-  theme = theme,
-  expandBB = c(-.02, 0, 0.05, 0)
-)
-
-mf_map(ocean,
-       col = "#9acbe3",
-       border = "#9acbe3",
-       lwd = 5,
-       add = TRUE)
-
-mf_map(
-  graticule,
-  col = "#FFFFFF80",
-  lwd = 1.5,
-  lty = 3,
-  add = TRUE
-)
-
-
-ue <- st_union(nuts)
-
-mf_map(ue + c(5000,-5000),
-       col = "#827e6c40",
-       border = NA,
-       add = TRUE)
-mf_map(ue + c(10000,-10000),
-       col = "#827e6c40",
-       border = NA,
-       add = TRUE)
-mf_map(ue + c(15000,-15000),
-       col = "#827e6c40",
-       border = NA,
-       add = TRUE)
-mf_map(ue + c(20000,-20000),
-       col = "#827e6c40",
-       border = NA,
-       add = TRUE)
-mf_map(ue + c(25000,-25000),
-       col = "#827e6c40",
-       border = NA,
-       add = TRUE)
-
-mf_map(
-  nuts,
-  col = "#f0aa0c",
-  border = "white",
-  lwd = 0.3,
-  add = TRUE
-)
+template = function(file) {
+  theme <- mf_theme(
+    x = "default",
+    bg = "#f2efe6",
+    fg = "#f2efe6",
+    mar = c(0, 0, 0, 0),
+    tab = TRUE,
+    pos = "left",
+    inner = FALSE,
+    line = 2,
+    cex = 1.9,
+    font = 3
+  )
+  
+  mf_export(
+    bb,
+    export = "png",
+    width = 2000,
+    filename = file,
+    res = 150,
+    theme = theme,
+    expandBB = c(-.02, 0, 0.05, 0)
+  )
+  
+  mf_map(
+    ocean,
+    col = "#9acbe3",
+    border = "#9acbe3",
+    lwd = 5,
+    add = TRUE
+  )
+  
+  mf_map(
+    graticule,
+    col = "#FFFFFF80",
+    lwd = 1.5,
+    lty = 3,
+    add = TRUE
+  )
+  
+  
+  ue <- st_union(nuts)
+  
+  mf_map(ue + c(5000, -5000),
+         col = "#827e6c40",
+         border = NA,
+         add = TRUE)
+  mf_map(ue + c(10000, -10000),
+         col = "#827e6c40",
+         border = NA,
+         add = TRUE)
+  mf_map(ue + c(15000, -15000),
+         col = "#827e6c40",
+         border = NA,
+         add = TRUE)
+  mf_map(ue + c(20000, -20000),
+         col = "#827e6c40",
+         border = NA,
+         add = TRUE)
+  mf_map(ue + c(25000, -25000),
+         col = "#827e6c40",
+         border = NA,
+         add = TRUE)
+  
+  mf_map(
+    nuts,
+    col = "#dbccb6",
+    border = "white",
+    lwd = 0.3,
+    add = TRUE
+  )
 }
 ```
 
@@ -415,7 +417,7 @@ cols <-
 
 ## Réalisation de la carte
 
-```{r, eval = TRUE, message = FALSE, warning = FALSE}
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
 template("figures/fig2.png")
 
 mf_map(
@@ -470,7 +472,52 @@ FIX PB LEGEND !
 
 # Discontinuités
 
-todo...
+Pour générer les lignes de discontinuités nous utilisons la fonction getBorders du package cartography.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+nuts.borders <- getBorders(nuts)
+```
+
+Puis, nous effectuons une double jointure pour relier à chaque frontière les données de PIB par habitant des regions NUTS de part et d’autre.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+vals <- nuts[,c("id","GDPINH_2016")] %>% st_set_geometry(NULL)
+nuts.borders <- merge (x = nuts.borders, y = vals,
+                       by.x = "id1", by.y = "id", all.x = T)
+nuts.borders <- merge (x = nuts.borders, y = vals,
+                       by.x = "id2", by.y = "id", all.x = T)
+```
+
+Nous calculons pour chaque frontière une valeur de discontinuité. Ici, discontinuités relatives.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+nuts.borders$disc <- nuts.borders$GDPINH_2016.x / nuts.borders$GDPINH_2016.y
+```
+
+
+Nous choisissons de ne conserver que les 10% discontinuités les plus fortes. Cela revient à choisir comme seuil la valeur 0.95 car il y a deux valeurs par frontières (A/B et B/A).
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+threshold <- 0.95
+disc <- nuts.borders[nuts.borders$disc >= quantile(nuts.borders$disc,threshold),]
+```
+
+On affiche les discontinuités dans le template cartographique
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+template("figures/fig3.png")
+mf_map(
+  x = disc,
+  col = "#d92e94",
+  lwd = 3,
+  add = TRUE
+)
+dev.off()
+```
+
+![](figures/fig3.png)
+
+On constate que les fortes discontinuités entre les régions européennes suivent très largement le tracé de l’ancien rideau de fer (si on fait abstraction de l’ancienne frontière RFA/RDA). C’est cela que nous souhaitons mettre en valeur par un procédé d’extrusion pour rappeler la symbolique du mur.
 
 # Extrusion
 
