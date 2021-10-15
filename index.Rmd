@@ -356,23 +356,23 @@ template = function(file) {
   
   ue <- st_union(nuts)
   
-  mf_map(ue + c(5000, -5000),
+  mf_map(ue + c(5000,-5000),
          col = "#827e6c40",
          border = NA,
          add = TRUE)
-  mf_map(ue + c(10000, -10000),
+  mf_map(ue + c(10000,-10000),
          col = "#827e6c40",
          border = NA,
          add = TRUE)
-  mf_map(ue + c(15000, -15000),
+  mf_map(ue + c(15000,-15000),
          col = "#827e6c40",
          border = NA,
          add = TRUE)
-  mf_map(ue + c(20000, -20000),
+  mf_map(ue + c(20000,-20000),
          col = "#827e6c40",
          border = NA,
          add = TRUE)
-  mf_map(ue + c(25000, -25000),
+  mf_map(ue + c(25000,-25000),
          col = "#827e6c40",
          border = NA,
          add = TRUE)
@@ -383,6 +383,39 @@ template = function(file) {
     border = "white",
     lwd = 0.3,
     add = TRUE
+  )
+  rect(-22 * k,
+       41.3 * k,
+       28 * k,
+       41.3 * k + 250000,
+       border = NA,
+       col = "#2369bd80")
+  text(
+    x = -21.5 * k,
+    y = 42.4 * k,
+    "30 YEARS LATER, THE IRON CURTAIN IS STILL VISIBLE",
+    cex = 2.14,
+    pos = 4,
+    font = 2,
+    col = "#FFFFFF80"
+  )
+  text(
+    x = -21.75 * k,
+    y = 44.25 * k,
+"Map 100% designed in the R language by Nicolas Lambert, 2019. 
+Code source available here: https://github.com/neocarto/ironcurtain). Data sources: Eurostat & Natural Earth, 2019",
+    cex = 0.5,
+    pos = 4,
+    font = 1,
+    col = "#3f4654"
+  )
+  
+  barscale(
+    700,
+    lwd = 0.6,
+    cex = 0.4,
+    pos = c(19 * k, y = 44 * k),
+    style = "pretty"
   )
 }
 ```
@@ -433,7 +466,7 @@ mf_map(
 
 mf_legend(
   type = "choro",
-  pos = c(11 * k, 58.8 * k),
+  pos = c(11 * k, 58.85 * k),
   title = "",
   val = bks,
   val_cex = 0.5,
@@ -608,17 +641,17 @@ for (i in 1:length(disc$height))
 }
 
 # Habillage
-
-text(14.4*k, y = 57.4*k, "Discontinuities", cex = 0.6,
+d = 0.75 * k
+text(14.4*k - d, y = 57.4*k, "Discontinuities", cex = 0.6,
      pos = 4, font = 2, col="#404040")     
-text(15.5*k, y = 56.6*k, "Between two regions of the same country",
+text(15.5*k - d, y = 56.6*k, "Between two regions of the same country",
      cex = 0.4, pos = 4, font = 1, col="#404040")   
-text(15.5*k, y = 55.7*k, "Between two regions of two different countries",
+text(15.5*k - d, y = 55.7*k, "Between two regions of two different countries",
      cex = 0.4, pos = 4, font = 1, col="#404040")   
-text(15.5*k, y = 55.3*k,
+text(15.5*k - d, y = 55.3*k,
      "(The height is proportional to the value of the dicontinuity)",
      cex = 0.4, pos = 4, font = 1, col="#404040")   
-text(10.5*k, y = 54.4*k,
+text(10.7*k, y = 54.4*k,
      "NB: only the 10% highest discontinuities are represented on the map.",
      cex = 0.4, pos = 4, font = 3, col="#404040")   
 
@@ -669,11 +702,12 @@ mf_map(
 
 mf_legend(
   type = "choro",
-  pos = c(11 * k, 58.8 * k),
+  pos = c(11 * k, 59.05 * k),
   title = "",
   val = bks,
-  val_cex = 0.5,
+  val_cex = 0.4,
   pal = cols,
+  fg = "#333333",
   cex = 0.85,
   border = "red",
   val_rnd = 0,
@@ -706,24 +740,24 @@ for (i in 1:length(disc$height))
 }
 
 # Habillage
-
-text(14.4*k, y = 57.4*k, "Discontinuities", cex = 0.6,
+d = 0.75 * k
+text(14.4*k - d, y = 57.4*k, "Discontinuities", cex = 0.6,
      pos = 4, font = 2, col="#404040")     
-text(15.5*k, y = 56.6*k, "Between two regions of the same country",
+text(15.5*k - d, y = 56.6*k, "Between two regions of the same country",
      cex = 0.4, pos = 4, font = 1, col="#404040")   
-text(15.5*k, y = 55.7*k, "Between two regions of two different countries",
+text(15.5*k - d, y = 55.7*k, "Between two regions of two different countries",
      cex = 0.4, pos = 4, font = 1, col="#404040")   
-text(15.5*k, y = 55.3*k,
+text(15.5*k - d, y = 55.3*k,
      "(The height is proportional to the value of the dicontinuity)",
      cex = 0.4, pos = 4, font = 1, col="#404040")   
-text(10.5*k, y = 54.4*k,
+text(10.7*k, y = 54.4*k,
      "NB: only the 10% highest discontinuities are represented on the map.",
      cex = 0.4, pos = 4, font = 3, col="#404040")   
 
 # Lignes
 
 myline <- disc[disc$id == "TR21_BG341",]
-st_geometry(myline) <- st_geometry(myline) + c(5*k, 5*k)
+st_geometry(myline) <- st_geometry(myline) + c(4*k, 5.3*k)
 myline2 <- myline
 st_geometry(myline2) <- st_geometry(myline2) + c(0, 1.5*k)
 
