@@ -43,11 +43,6 @@ knitr::opts_chunk$set(echo=TRUE,
 
 Ce document montre comment réaliser cette carte de discontuités en 2,5D (fausse 3D) joliement mise en page entrièrement dans le langage R. Des versions antérieures de cette carte ont déjà été publiées par le passé, dans le manuel de cartographie [@lambert2016manuel], ou dans Mad Maps [@lambert2019mad] et ont fait l'objet de billets de blog [@lambert2019mise]. Ici, nous entendons prouver qu'il est possible de réaliser ce type de carte sans passer par un logiciel DAO [@lambert2019dessiner]. Les sources et les références sont précisées à la fin du document.
 
-
-# Packages
-
-Pour réaliser cette carte, nous utilisons pour cela les packages *eurostat* [@eurostat], *RnaturalEarth* [@rnaturalearth], *sf* [@sf] et *mapsf* [@mapsf].
-
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 library("sf")
 library("mapsf")
@@ -55,9 +50,13 @@ library("eurostat")
 library("rnaturalearth")
 ```
 
-# Données
+# Préparation des données
 
-L'import des données et du fond de carte s'effectue directement avec le package *Eurostat*. L'import des géométries s'effectue de la façon suivante. Nous utilisons le maillage NUTS version 2016.
+Pour réaliser cette carte, nous utilisons pour cela les packages *eurostat* [@eurostat], *RnaturalEarth* [@rnaturalearth], *sf* [@sf] et *mapsf* [@mapsf].
+
+## Fond de carte
+
+Avec le package *Eurostat*, nous créons d'un fond de carte hybride avec maillage homogène nuts2/3. Tous les les pays sont au niveau nuts3 version 2016 sauf l'Autriche, la Belgique, la Suisse, l'Allemagne, la Grèce, les Pays-Bas, la Turquie, l'Irlande, l'Islande et la Norvège. Pour des raisons de disponibilité des données post Brexit, Le Royaume-Uni est au niveau nuts2 vesrion 2013. 
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts2016 <- get_eurostat_geospatial(
@@ -66,101 +65,99 @@ nuts2016 <- get_eurostat_geospatial(
   nuts_level = "all",
   year = "2016"
 )
+
+nuts2016_3 <- nuts2016[nuts2016$LEVL_CODE == 3, ]
+nuts2016_2 <- nuts2016[nuts2016$LEVL_CODE == 2, ]
+
+N2 <-
+  c("AT", "BE", "CH", "DE", "EL", "NL", "UK", "TR", "IE", "IS", "NO")
+nuts <- rbind(nuts2016_2[nuts2016_2$CNTR_CODE %in% N2, ],
+              nuts2016_3[!nuts2016_3$CNTR_CODE %in% N2, ])
+
+nuts <- nuts[nuts$CNTR_CODE != "UK", ]
+
+nuts <- nuts[,c("id","NUTS_NAME","geometry")]
+colnames(nuts) <- c("id","name","geometry")
+
+nuts2013 <- get_eurostat_geospatial(
+  output_class = "sf",
+  resolution = "20",
+  nuts_level = "2",
+  year = "2013"
+)
+
+uk = nuts2013[nuts2013$CNTR_CODE == "UK",c("id","NUTS_NAME","geometry")]
+colnames(uk) <- c("id","name","geometry")
+
+nuts <- rbind(nuts, uk)
+
+
+nuts <-
+  nuts[!nuts$id %in% c("FRY10", "FRY20", "FRY30", "FRY40", "FRY50"), ]
+nuts <- nuts[nuts$id != "RS", ]
 ```
 
-Import des données statistiques (PIB par habitant en euros) pour les années récentes (de 2014 à 2017).
+```{r, eval = TRUE, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3}
+par(mar = c(0, 0, 0, 0), mfrow = c(1, 3))
+mf_map(nuts, col = "#CCCCCC", border = NA)
+mf_map(nuts[substr(nuts$id,1,2) %in%  c("AT", "BE", "CH", "DE", "EL", "NL", "UK", "TR", "IE", "IS", "NO"),],
+       col = "#6eb1db",
+       border = "white",
+       lwd = 0.2, add = TRUE)
+mf_title("NUTS 2 (version 2016)", bg = "#6eb1db")
+mf_map(nuts, col = "#CCCCCC", border = NA)
+mf_map(nuts[!substr(nuts$id,1,2) %in%  c("AT", "BE", "CH", "DE", "EL", "NL", "UK", "TR", "IE", "IS", "NO", "UK"),],
+       col = "#6eb1db",
+       border = "white",
+       lwd = 0.2, add = TRUE)
+mf_title("NUTS 3 (version 2016)", bg = "#6eb1db")
+mf_map(nuts, col = "#CCCCCC", border = NA)
+mf_map(nuts[substr(nuts$id,1,2) == "UK",],
+       col = "#6eb1db",
+       border = "white",
+       lwd = 0.2, add = TRUE)
+mf_title("NUTS 2 (version 2013)", bg = "#6eb1db")
+```
+
+## Données statistiques
+
+Import des données statistiques (PIB par habitant en euros zn 2016)
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 var <- "nama_10r_3gdp"
 gdpinh <- get_eurostat(var, time_format = "num")
 gdpinh <- subset(gdpinh, gdpinh$unit == "EUR_HAB")
 gdpinh <- reshape2::dcast(gdpinh, geo ~ time, value.var = "values")
-fields <- c("geo", "2014", "2015", "2016", "2017")
+fields <- c("geo", "2016")
 gdpinh <- gdpinh[, fields]
-colnames(gdpinh) <-
-  c("id",
-    "GDPINH_2014",
-    "GDPINH_2015",
-    "GDPINH_2016",
-    "GDPINH_2017")
+colnames(gdpinh) <- c("id","GDPINH_2016")
 ```
 
-Jointure des données et du fond de carte pour les niveaux NUTS 2 et NUTS 3 
+A Cause du Brexit, les données pour le Royaume-Uni ne sont plus disponibles. On va les chercher dans dans le fichier missing.csv issu de la [base de données ESPON](https://database.espon.eu/).
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
-nuts2016 <- merge(
-  x = nuts2016,
+missing <- read.csv("data/missing.csv")
+gdpinh = rbind(gdpinh, missing)
+```
+
+Pour des questions de reproductibilité, nous sauvegardons les données dans le répertoire data.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+write.csv(gdpinh, "data/gdpinh.csv")
+```
+
+Jointure des données et du fond de carte
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+nuts <- merge(
+  x = nuts,
   y = gdpinh,
-  by.x = "NUTS_ID",
-  by.y = "id",
+  by = "id",
   all.x = TRUE
 )
-nuts2016_3 <- nuts2016[nuts2016$LEVL_CODE == 3, ]
-nuts2016_2 <- nuts2016[nuts2016$LEVL_CODE == 2, ]
 ```
 
-Création d'un fond de carte combinant les NUTS 2 et le NUTS 3 dans le but d'avoir un maillage homogène avec le moins possible de données manquantes.
-
-```{r, eval = TRUE, message = FALSE, warning = FALSE}
-N2 <-
-  c("AT", "BE", "CH", "DE", "EL", "NL", "UK", "TR", "IE", "IS", "NO")
-nuts <- rbind(nuts2016_2[nuts2016_2$CNTR_CODE %in% N2, ],
-              nuts2016_3[!nuts2016_3$CNTR_CODE %in% N2, ])
-nuts$id <- nuts$NUTS_ID
-```
-
-Elimination des territoires hors de l'espace d'étude (e.g. remote territories)
-
-```{r, eval = TRUE, message = FALSE, warning = FALSE}
-nuts <-
-  nuts[!nuts$id %in% c("FRY10", "FRY20", "FRY30", "FRY40", "FRY50"), ]
-nuts <- nuts[nuts$CNTR_CODE != "RS", ]
-```
-
-```{r, eval = TRUE, message = FALSE, warning = FALSE}
-mf_map(
-  x = nuts,
-  type = "typo",
-  var = "LEVL_CODE",
-  pal = c("#cc5e4e", "#76c24f"),
-  val_order = c("2", "3"),
-  border = "#e8e8e8",
-  lwd = 0.2,
-  leg_pos = "left",
-  leg_title = "Nuts level (version 2016)"
-)
-
-```
-
-Détermination de l'année cible
-
-```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
-sapply(nuts[, c("GDPINH_2014", "GDPINH_2015", "GDPINH_2016", "GDPINH_2017")],
-       function(x)
-         sum(is.na(x)))
-```
-
-On cible l'année 2016 qui est la plus récente et qui a le moins de données manquantes
-
-```{r, eval = TRUE, message = FALSE, warning = FALSE}
-nuts <- nuts[, c("id", "NUTS_NAME", "GDPINH_2016", "geometry")]
-colnames(nuts) <- c("id", "name", "GDPINH_2016", "geometry")
-```
-
-
-On complète les données manquantes par de données estimées en externe.
-
-```{r, eval = TRUE, message = FALSE, warning = FALSE}
-nuts[nuts$id == "CH01","GDPINH_2016"] <- 44418.07
-nuts[nuts$id == "CH02","GDPINH_2016"] <- 38721.88
-nuts[nuts$id == "CH03","GDPINH_2016"] <- 51173.14
-nuts[nuts$id == "CH04","GDPINH_2016"] <- 56462.12
-nuts[nuts$id == "CH05","GDPINH_2016"] <- 40871.44
-nuts[nuts$id == "CH06","GDPINH_2016"] <- 43665
-nuts[nuts$id == "CH07","GDPINH_2016"] <- 35029.52
-nuts[nuts$id == "LI000","GDPINH_2016"] <- 160000
-nuts[nuts$id == "IS00","GDPINH_2016"] <- 55900
-```
+## Couches d'habillage
 
 Import des couches d'habillage avec le package *RnaturalEarth*
 
@@ -250,12 +247,16 @@ Affichages des couches recadrées et projetées
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 par(mar = c(0, 0, 0, 0), mfrow = c(2, 2))
 mf_map(land, col = "#6eb1db", border = NA)
+mf_title("land", bg = "#6eb1db")
 mf_map(ocean, col = "#6eb1db", border = NA)
+mf_title("ocean", bg = "#6eb1db")
 mf_map(graticule, col = "#6eb1db", lwd = 1)
+mf_title("graticule", bg = "#6eb1db")
 mf_map(nuts,
        col = "#6eb1db",
        border = "white",
        lwd = 0.2)
+mf_title("nuts", bg = "#6eb1db")
 dev.off()
 ```
 
@@ -290,7 +291,7 @@ mf_map(
 )
 ```
 
-# Template
+## Template
 
 Réalisation du template cartographique. Pour bien maîtriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png en définissant précisément l'emprise de la carte. Ici, les cartes sont crées au format png et enregistrées dans le répertoire figures/. 
 
@@ -339,13 +340,13 @@ mf_export(
 mf_map(ocean,
        col = "#9acbe3",
        border = "#9acbe3",
-       lwd = 7,
+       lwd = 5,
        add = TRUE)
 
 mf_map(
   graticule,
   col = "#FFFFFF80",
-  lwd = 2,
+  lwd = 1.5,
   lty = 3,
   add = TRUE
 )
@@ -386,16 +387,15 @@ mf_map(
 
 Et voilà le résultat :-)
 
-```{r, eval = TRUE, message = FALSE, warning = FALSE}
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
 template("figures/fig1.png")
 dev.off()
 ```
 
 ![](figures/fig1.png)
-
 # Carte choroplèthe
 
-Classes et couleurs
+## Choix des classes et des couleurs
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 # Discrétisation
@@ -413,10 +413,10 @@ cols <-
     "#e97d40")
 ```
 
-Carte
+## Réalisation de la carte
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
-template("figures/fig1.png")
+template("figures/fig2.png")
 
 mf_map(
   x = nuts,
@@ -429,11 +429,25 @@ mf_map(
   add = TRUE
 )
 
+mf_legend(
+  type = "choro",
+  pos = c(11 * k, 58.8 * k),
+  title = "",
+  val = bks,
+  val_cex = 0.5,
+  pal = cols,
+  cex = 0.85,
+  border = "red",
+  val_rnd = 0,
+  no_data = FALSE,
+  frame = FALSE
+)
+
 text(
   10.5 * k,
   y = 59.1 * k,
   "Gross Domestic Product",
-  cex = 0.6,
+  cex = 0.75,
   pos = 4,
   font = 2,
   col = "#404040"
@@ -442,7 +456,7 @@ text(
   10.5 * k,
   y = 58.7 * k,
   "(in € per inh. in 2016)",
-  cex = 0.4,
+  cex = 0.55,
   pos = 4,
   font = 1,
   col = "#404040"
@@ -450,8 +464,9 @@ text(
 dev.off()
 ```
 
+FIX PB LEGEND !
 
-todo...
+![](figures/fig2.png)
 
 # Discontinuités
 
