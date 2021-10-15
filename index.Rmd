@@ -521,12 +521,233 @@ On constate que les fortes discontinuités entre les régions européennes suive
 
 # Extrusion
 
-todo...
+Pour extruder les lignes, nous procedons de la même façon que pour l’effet d’ombrage. Nous translatons les lignes plusieurs fois en Y (vers le haut). Sur la projection orthographique utilisée, cela produit un effet 3D. Le nombre d’itérations et l’éccart entre les lignes détermine la hauteur du mur. Voici un exemple.
 
-# Résultat
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+# On séléctionne une ligne au hasard
+line <- st_geometry(disc[5, ])
 
-todo...
+# nombre d'itérations
+nb <- 15
 
+# valeur de translation
+delta <- 200
+
+# On effectue une boucle
+par(mar = c(0, 0, 0, 0), bg = "#f2efe6")
+mf_map(line, col = "#66666690", lwd = 0.5)
+for (j in 1:nb) {
+  line <- line + c(0, delta)
+  mf_map(line,
+         col = "#66666690",
+         lwd = 0.5 ,
+         add = TRUE)
+}
+
+# On affiche la derinière ligne en rouge avec une épaisseur de 1.2
+mf_map(line,
+       col = "#cf0e00",
+       lwd = 1.2,
+       add = TRUE)
+```
+
+Pour faire en sorte que l’effet 3D fonctionne bien, nous décompsons les lignes et les ordonnons en fonction de leur valeur en Y (pour faire en sorte que les lignes qui sont devant apparaissent devant)
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+disc <- st_cast(disc,"LINESTRING")
+c <- as.data.frame(st_coordinates(st_centroid(disc)))
+disc$Y <- c$Y
+disc <- disc[order(disc$Y, decreasing = TRUE), ]
+```
+
+Car nous considerons que les frontières nationales renvoient à des disparités historiques plus dures, nous choisissons de traiter différement les discontinuités entre deux régions d’un même pays et les discontinuités entre deux régions de deux pays différents. Les premières auront une hauteur de mur constante (8 itérations). Les secondes auront une hauteur de mur qui dépendra de la valeur des discontinuités (entre 30 et 100 itérations) et seront représentées en rouges.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+disc$c1 <- substr(disc$id1,1,2)
+disc$c2 <- substr(disc$id2,1,2)
+
+
+# Discontinuities between two regions of two different countries
+disc$height <- round(scales::rescale(disc$disc, to=c(30,70)),0)
+disc$col <-"#cf0e00"
+disc$thickness <- 1.2
+
+# Discontinuities between two regions of the same country
+for (i in 1:length(disc$disc)){ if (disc$c1[i]== disc$c2[i]) {
+  disc$height[i] <- 8  
+  disc$col[i] <-"#66666690"
+  disc$thickness[i] <- 0.5
+  }
+}
+```
+
+On fabrique une fonction pour extruder.
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE}
+delta <- 2500 # spacing between lines (walls) 
+extrude <- function(id){
+  line <- st_geometry(disc[id,])
+  mf_map(line, col= "#66666690",lwd = 0.5 ,add= TRUE)
+      nb <- as.numeric(disc[id,"height"])[1]
+      for (j in 1:nb){
+        line <- st_geometry(line) + c(0,delta)
+        mf_map(st_geometry(line), col= "#66666690",lwd = 0.5 ,add= TRUE)  
+      }
+      mf_map(line, col= disc$col[id],lwd = disc$thickness[id] ,add= TRUE)
+}
+```
+
+On applique la fonction à toutes les lignes de la façon suivante
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+template("figures/fig4.png")
+
+for (i in 1:length(disc$height))
+{
+  extrude(i)
+}
+
+# Habillage
+
+text(14.4*k, y = 57.4*k, "Discontinuities", cex = 0.6,
+     pos = 4, font = 2, col="#404040")     
+text(15.5*k, y = 56.6*k, "Between two regions of the same country",
+     cex = 0.4, pos = 4, font = 1, col="#404040")   
+text(15.5*k, y = 55.7*k, "Between two regions of two different countries",
+     cex = 0.4, pos = 4, font = 1, col="#404040")   
+text(15.5*k, y = 55.3*k,
+     "(The height is proportional to the value of the dicontinuity)",
+     cex = 0.4, pos = 4, font = 1, col="#404040")   
+text(10.5*k, y = 54.4*k,
+     "NB: only the 10% highest discontinuities are represented on the map.",
+     cex = 0.4, pos = 4, font = 3, col="#404040")   
+
+# Lignes
+
+myline <- disc[disc$id == "TR21_BG341",]
+st_geometry(myline) <- st_geometry(myline) + c(5*k, 5*k)
+myline2 <- myline
+st_geometry(myline2) <- st_geometry(myline2) + c(0, 1.5*k)
+
+# discontinuités entre deux régions de deux pays différentes
+  
+  plot(myline, col= "#66666690",lwd = 0.5 ,add= T)
+  for (i in 1:40){
+    myline <- st_geometry(myline) + c(0,delta)
+    plot(st_geometry(myline), col= "#66666690",lwd = 0.5 ,add= T)  
+  }
+  plot(myline, col= "#cf0e00",lwd = 1.2 ,add= T)
+
+# discontinuités entre deux régions d'un même pays
+
+  plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
+  for (i in 1:8){
+    myline2 <- st_geometry(myline2) + c(0,delta)
+    plot(st_geometry(myline2), col= "#66666690",lwd = 0.5 ,add= T)  
+  }
+  plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
+dev.off()
+```
+
+![](figures/fig4.png)
+
+# Carte finale
+
+```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
+template("figures/ironcurtain.png")
+
+mf_map(
+  x = nuts,
+  var = "GDPINH_2016",
+  type = "choro",
+  breaks = bks,
+  pal = cols,
+  lwd = 0.2,
+  leg_pos = "n",
+  add = TRUE
+)
+
+mf_legend(
+  type = "choro",
+  pos = c(11 * k, 58.8 * k),
+  title = "",
+  val = bks,
+  val_cex = 0.5,
+  pal = cols,
+  cex = 0.85,
+  border = "red",
+  val_rnd = 0,
+  no_data = FALSE,
+  frame = FALSE
+)
+
+text(
+  10.5 * k,
+  y = 59.1 * k,
+  "Gross Domestic Product",
+  cex = 0.75,
+  pos = 4,
+  font = 2,
+  col = "#404040"
+)
+text(
+  10.5 * k,
+  y = 58.7 * k,
+  "(in € per inh. in 2016)",
+  cex = 0.55,
+  pos = 4,
+  font = 1,
+  col = "#404040"
+)
+
+for (i in 1:length(disc$height))
+{
+  extrude(i)
+}
+
+# Habillage
+
+text(14.4*k, y = 57.4*k, "Discontinuities", cex = 0.6,
+     pos = 4, font = 2, col="#404040")     
+text(15.5*k, y = 56.6*k, "Between two regions of the same country",
+     cex = 0.4, pos = 4, font = 1, col="#404040")   
+text(15.5*k, y = 55.7*k, "Between two regions of two different countries",
+     cex = 0.4, pos = 4, font = 1, col="#404040")   
+text(15.5*k, y = 55.3*k,
+     "(The height is proportional to the value of the dicontinuity)",
+     cex = 0.4, pos = 4, font = 1, col="#404040")   
+text(10.5*k, y = 54.4*k,
+     "NB: only the 10% highest discontinuities are represented on the map.",
+     cex = 0.4, pos = 4, font = 3, col="#404040")   
+
+# Lignes
+
+myline <- disc[disc$id == "TR21_BG341",]
+st_geometry(myline) <- st_geometry(myline) + c(5*k, 5*k)
+myline2 <- myline
+st_geometry(myline2) <- st_geometry(myline2) + c(0, 1.5*k)
+
+# discontinuités entre deux régions de deux pays différentes
+  
+  plot(myline, col= "#66666690",lwd = 0.5 ,add= T)
+  for (i in 1:40){
+    myline <- st_geometry(myline) + c(0,delta)
+    plot(st_geometry(myline), col= "#66666690",lwd = 0.5 ,add= T)  
+  }
+  plot(myline, col= "#cf0e00",lwd = 1.2 ,add= T)
+
+# discontinuités entre deux régions d'un même pays
+
+  plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
+  for (i in 1:8){
+    myline2 <- st_geometry(myline2) + c(0,delta)
+    plot(st_geometry(myline2), col= "#66666690",lwd = 0.5 ,add= T)  
+  }
+  plot(myline2, col= "#66666690",lwd = 0.5 ,add= T)
+dev.off()
+```
+
+![](figures/ironcurtain.png)
 
 
 # Bibliographie {-}
