@@ -43,21 +43,22 @@ knitr::opts_chunk$set(echo=TRUE,
 
 Ce document montre comment réaliser cette carte de discontuités en 2,5D (fausse 3D) joliement mise en page entrièrement dans le langage R. Des versions antérieures de cette carte ont déjà été publiées par le passé, dans le manuel de cartographie [@lambert2016manuel], ou dans Mad Maps [@lambert2019mad] et ont fait l'objet de billets de blog [@lambert2019mise]. Ici, nous entendons prouver qu'il est possible de réaliser ce type de carte sans passer par un logiciel DAO [@lambert2019dessiner]. Les sources et les références sont précisées à la fin du document.
 
+# Préparation des données
+
+## Packages
+
+Pour réaliser cette carte, nous nous nous appuyons sur 4 packagee : le package  *sf* [@sf] pour gérer les objets spatiaux,  le package *mapsf* [@mapsf] pour l'affichage des différentes couches composant la carte, le package *eurostat* [@eurostat] pour les données et le package *RnaturalEarth* [@rnaturalearth] pour quelques couches d'habillages supplémentaires. 
+
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 library("sf")
 library("mapsf")
 library("eurostat")
 library("rnaturalearth")
-library("cartography")
 ```
 
-# Préparation des données
+## Données géométriques
 
-Pour réaliser cette carte, nous utilisons pour cela les packages *eurostat* [@eurostat], *RnaturalEarth* [@rnaturalearth], *sf* [@sf] et *mapsf* [@mapsf].
-
-## Fond de carte
-
-Avec le package *Eurostat*, nous créons d'un fond de carte hybride avec maillage homogène nuts2/3. Tous les les pays sont au niveau nuts3 version 2016 sauf l'Autriche, la Belgique, la Suisse, l'Allemagne, la Grèce, les Pays-Bas, la Turquie, l'Irlande, l'Islande et la Norvège. Pour des raisons de disponibilité des données post Brexit, Le Royaume-Uni est au niveau nuts2 vesrion 2013. 
+Avec le package *Eurostat*, nous créons d'un fond de carte hybride avec maillage homogène nuts2/3. Tous les pays sont au niveau nuts3 version 2016 sauf l'Autriche, la Belgique, la Suisse, l'Allemagne, la Grèce, les Pays-Bas, la Turquie, l'Irlande, l'Islande et la Norvège. Pour des raisons de disponibilité des données post Brexit, Le Royaume-Uni est au niveau nuts2 vesrion 2013. 
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts2016 <- get_eurostat_geospatial(
@@ -122,32 +123,30 @@ mf_title("NUTS 2 (version 2013)", bg = "#6eb1db")
 
 ## Données statistiques
 
-Import des données statistiques (PIB par habitant en euros zn 2016)
+Grace au package *eurostat*, nous récupérons les données de PIB par habitant en 2016.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 var <- "nama_10r_3gdp"
 gdpinh <- get_eurostat(var, time_format = "num")
 gdpinh <- subset(gdpinh, gdpinh$unit == "EUR_HAB")
-gdpinh <- reshape2::dcast(gdpinh, geo ~ time, value.var = "values")
-fields <- c("geo", "2016")
-gdpinh <- gdpinh[, fields]
+gdpinh <- gdpinh[gdpinh$time == 2016,c("geo","values")]
 colnames(gdpinh) <- c("id","GDPINH_2016")
 ```
 
-A Cause du Brexit, les données pour le Royaume-Uni ne sont plus disponibles. On va les chercher dans dans le fichier missing.csv issu de la [base de données ESPON](https://database.espon.eu/).
+A Cause du Brexit, les données pour le Royaume-Uni ne sont plus disponibles. Les données sont également manquantes pour quelques unités territoriales. Nous combinons donc les données issues d'Eurostat avec des estimations issues de la [base de données ESPON](https://database.espon.eu/). Celles-si ont été préalablement stockées dans dans le fichier local *missing.csv*. NOus combinons les 2 jeux de données pour avoir une couverture exhaustive de l'espace à représenter,
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 missing <- read.csv("data/missing.csv")
 gdpinh = rbind(gdpinh, missing)
 ```
 
-Pour des questions de reproductibilité, nous sauvegardons les données dans le répertoire data.
+Pour des questions de reproductibilité, nous sauvegardons les données ainsi complétées dans le répertoire local data.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 write.csv(gdpinh, "data/gdpinh.csv")
 ```
 
-Jointure des données et du fond de carte
+Nous effectuons une Jointure entre les données et les géométries.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 nuts <- merge(
@@ -160,7 +159,7 @@ nuts <- merge(
 
 ## Couches d'habillage
 
-Import des couches d'habillage avec le package *RnaturalEarth*
+Pour compléter la carte, nous importons des couches d'habillage avec le package *RnaturalEarth*.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
 land <- ne_download(
@@ -188,7 +187,7 @@ ocean <- ne_download(
 mf_map(ocean, border = NA, col = "#6eb1db")
 ```
 
-Graticule avec *sf*
+Puis, nous créons une couche de graticules avec le package *sf*.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
 graticule = st_graticule(
@@ -204,13 +203,9 @@ graticule = st_graticule(
 mf_map(graticule, col = "#6eb1db")
 ```
 
-Mise en forme des couches
-
 ## Template cartographique
 
-Pour donner un effet de rotondité et permettre une représentation en 2.5D, on opte pour une projection orthographique centré sur l'Afrique. Pour éviter tout problème dans l'opération de projection (bug, artefacts, etc.), nous definissons au préalable un rectangle nous servant à découper les différentes couches.
-
-NB : passer sf_use_s2 à FALSE permet de faire comme si il ne s'agissait pas de coordonnées sur le globe.
+Pour donner un effet de rotondité et permettre une représentation en 2.5D, on opte pour une projection orthographique centré sur l'Afrique. Pour éviter tout problème dans l'opération de projection (bug, artefacts, etc.), nous définissons au préalable un rectangle nous servant à découper les différentes couches. Pour que cette opération se passe bien, nous devons passer le paramètre *sf_use_s2* à *FALSE* pour faire comme si les latitudes et longitudes étaient des coordonnées euclidienne. Une fois les intersections effectuées, nous repassons ce paramètre à *TRUE*.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
 bb <-
@@ -231,7 +226,7 @@ graticule <- st_intersection(graticule, bb)
 sf::sf_use_s2(TRUE)
 ```
 
-Projection
+Nous projetons les différentes couches dans une projection orthographique centrée sur l'Afrique (10° de latitude nord et 15° de longitude). 
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
 ortho <- "+proj=ortho +lat_0=-10 +lon_0=15 +x_0=0 +y_0=0
@@ -243,7 +238,7 @@ graticule =  st_transform(graticule, ortho)
 nuts <- st_transform(nuts, ortho)
 ```
 
-Affichages des couches recadrées et projetées
+Affichons les couches recadrées et projetées.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 par(mar = c(0, 0, 0, 0), mfrow = c(2, 2))
@@ -294,7 +289,7 @@ mf_map(
 
 ## Template
 
-Réalisation du template cartographique. Pour bien maîtriser le format de l'image, nous utilisons la fonction *getFigDim* et nous générons la carte au format png en définissant précisément l'emprise de la carte. Ici, les cartes sont crées au format png et enregistrées dans le répertoire figures/. 
+Nous réalisons à présent un Template cartographique. Pour cela, nous définissons précisément l'emprise de la carte dans le système de coordonnées de la projection. Les coordonnées étant en mètres, nous utilisons un facteur 100 000 (variable k) qui nous permet de manipuler des chiffres plus petits avec un niveau de précision satisfaisant. Nous utiliserons également ce facteur k pour positionner les différents éléments d'habillage de la carte. 
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 k <- 100000
@@ -310,7 +305,7 @@ bb <- st_as_sfc(st_bbox(
 ))
 ```
 
-On crée une fonction template()
+On crée une fonction template().
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 template = function(file) {
@@ -410,13 +405,13 @@ Code source available here: https://github.com/neocarto/ironcurtain). Data sourc
     col = "#3f4654"
   )
   
-  barscale(
-    700,
+  mf_scale(
+    size = 700,
     lwd = 0.6,
-    cex = 0.4,
-    pos = c(19 * k, y = 44 * k),
-    style = "pretty"
-  )
+    cex = 0.5,
+    col = "#3f4654",
+    pos = c(19 * k, y = 44 * k)
+    )
 }
 ```
 
@@ -505,10 +500,17 @@ dev.off()
 
 # Discontinuités
 
-Pour générer les lignes de discontinuités nous utilisons la fonction getBorders du package cartography.
+Pour générer les frontières entre les régions nuts, nous calculons une petite zone tampon (pour éliminer les éventuelles erreurs toplogiques) et effectuons une intersection entre tous les polygones. Nous definissons les géométries de sortie comme MULTILINESTRING. 
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
-nuts.borders <- getBorders(nuts)
+nuts.borders  <- st_intersection(st_buffer(nuts, 5), st_buffer(nuts, 5)) 
+nuts.borders  <- st_cast(nuts.borders ,"MULTILINESTRING")
+nuts.borders  <- nuts.borders [nuts.borders $id != nuts.borders $id.1, ] 
+nuts.borders$id1 = nuts.borders$id
+nuts.borders$id2 = nuts.borders$id.1
+nuts.borders$id =  paste0(nuts.borders$id1, "_", nuts.borders$id2)
+rownames(nuts.borders) = nuts.borders$id
+nuts.borders  = nuts.borders [,c("id","id1","id2","geometry")]
 ```
 
 Puis, nous effectuons une double jointure pour relier à chaque frontière les données de PIB par habitant des regions NUTS de part et d’autre.
@@ -535,7 +537,7 @@ threshold <- 0.95
 disc <- nuts.borders[nuts.borders$disc >= quantile(nuts.borders$disc,threshold),]
 ```
 
-On affiche les discontinuités dans le template cartographique
+On affiche les discontinuités dans le template cartographique.
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE, results = "hide"}
 template("figures/fig3.png")
@@ -550,7 +552,7 @@ dev.off()
 
 ![](figures/fig3.png)
 
-On constate que les fortes discontinuités entre les régions européennes suivent très largement le tracé de l’ancien rideau de fer (si on fait abstraction de l’ancienne frontière RFA/RDA). C’est cela que nous souhaitons mettre en valeur par un procédé d’extrusion pour rappeler la symbolique du mur.
+On constate que les fortes discontinuités entre les régions européennes suivent très largement le tracé de l’ancien rideau de fer (si on fait abstraction de ancienne frontière RFA/RDA). C’est cela que nous souhaitons mettre en valeur par un procédé d'extrusion pour rappeler la symbolique du mur.
 
 # Extrusion
 
@@ -584,7 +586,7 @@ mf_map(line,
        add = TRUE)
 ```
 
-Pour faire en sorte que l’effet 3D fonctionne bien, nous décompsons les lignes et les ordonnons en fonction de leur valeur en Y (pour faire en sorte que les lignes qui sont devant apparaissent devant)
+Pour faire en sorte que l’effet 3D fonctionne bien, nous décomposons les lignes et les ordonnons en fonction de leur valeur en Y (pour faire en sorte que les lignes qui sont devant apparaissent devant)
 
 ```{r, eval = TRUE, message = FALSE, warning = FALSE}
 disc <- st_cast(disc,"LINESTRING")
@@ -658,7 +660,7 @@ text(10.7*k, y = 54.4*k,
 # Lignes
 
 myline <- disc[disc$id == "TR21_BG341",]
-st_geometry(myline) <- st_geometry(myline) + c(5*k, 5*k)
+st_geometry(myline) <- st_geometry(myline) + c(4.2*k, 5*k)
 myline2 <- myline
 st_geometry(myline2) <- st_geometry(myline2) + c(0, 1.5*k)
 
@@ -757,7 +759,7 @@ text(10.7*k, y = 54.4*k,
 # Lignes
 
 myline <- disc[disc$id == "TR21_BG341",]
-st_geometry(myline) <- st_geometry(myline) + c(4*k, 5.3*k)
+st_geometry(myline) <- st_geometry(myline) + c(4.2*k, 5*k)
 myline2 <- myline
 st_geometry(myline2) <- st_geometry(myline2) + c(0, 1.5*k)
 
@@ -782,7 +784,7 @@ dev.off()
 ```
 
 ![](figures/ironcurtain.png)
-
+Et voilà. Même si cela nécessite quelques tâtonnements pour positionner les différents éléments, nous venons de faire la démonstration qu'il est donc possible de faire de la cartographie d'édition, stylisée et mise en page, uniquement avec R :-)
 
 # Bibliographie {-}
 
